@@ -1,0 +1,52 @@
+{
+  "leads": [
+    {
+      "id": 1,
+      "nombre_negocio": "Panaderia La Espiga",
+      "telefono": "+573001234567",
+      "categoria": "Panaderia",
+      "ciudad": "Santa Marta",
+      "web": "http://laespiga.example",
+      "contactado": false,
+      "estado": "pendiente",
+      "fecha_contacto": null,
+      "respuesta": null,
+      "plantilla_id": null,
+      "mensaje": null,
+      "mensaje_longitud": null,
+      "emoji_count": null
+    },
+    {
+      "id": 2,
+      "nombre_negocio": "Panaderia Nueva",
+      "telefono": "+573001234568",
+      "categoria": "",
+      "ciudad": "",
+      "web": "",
+      "contactado": false,
+      "estado": "pendiente",
+      "fecha_contacto": null,
+      "respuesta": null,
+      "plantilla_id": null,
+      "mensaje": null,
+      "mensaje_longitud": null,
+      "emoji_count": null
+    },
+    {
+      "id": 3,
+      "nombre_negocio": "Peluqueria Sol",
+      "telefono": "+573211234567",
+      "categoria": "",
+      "ciudad": "",
+      "web": "",
+      "contactado": false,
+      "estado": "pendiente",
+      "fecha_contacto": null,
+      "respuesta": null,
+      "plantilla_id": null,
+      "mensaje": null,
+      "mensaje_longitud": null,
+      "emoji_count": null
+    }
+  ]
+}

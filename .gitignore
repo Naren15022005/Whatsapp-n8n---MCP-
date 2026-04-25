@@ -6,3 +6,7 @@ credentials/
 .vscode/
 .DS_Store
 node_modules/
+pgdata/
+last_send_response.json
+send_response.json
+data/tmp_update.json

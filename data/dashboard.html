@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Outreach Bot - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .badge-pendiente { background: #ffeaa7; color: #d63031; }
+        .badge-enviado { background: #55efc4; color: #00b894; }
+        .badge-interesado { background: #74b9ff; color: #0984e3; }
+        .badge-rechazado { background: #dfe6e9; color: #636e72; }
+        .refresh-info {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        .emoji {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 WhatsApp Outreach Bot - Dashboard</h1>
+        
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-leads">0</div>
+                <div class="stat-label">Total Leads</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="enviados">0</div>
+                <div class="stat-label">Mensajes Enviados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendientes">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="interesados">0</div>
+                <div class="stat-label">Interesados</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Negocio</th>
+                        <th>Categoría</th>
+                        <th>Ciudad</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Fecha Contacto</th>
+                        <th>Plantilla</th>
+                        <th>Mensaje</th>
+                    </tr>
+                </thead>
+                <tbody id="leads-table">
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 40px; color: #999;">
+                            Cargando datos...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="refresh-info">
+            ⟳ Actualización automática cada 5 segundos
+        </div>
+    </div>
+
+    <script>
+        // Cargar y mostrar datos
+        async function loadData() {
+            try {
+                const response = await fetch('leads.json');
+                const data = await response.json();
+                
+                // Actualizar estadísticas
+                const leads = data.leads || [];
+                document.getElementById('total-leads').textContent = leads.length;
+                document.getElementById('enviados').textContent = leads.filter(l => l.contactado).length;
+                document.getElementById('pendientes').textContent = leads.filter(l => !l.contactado).length;
+                document.getElementById('interesados').textContent = leads.filter(l => l.estado === 'interesado').length;
+                
+                // Actualizar tabla
+                const tbody = document.getElementById('leads-table');
+                tbody.innerHTML = '';
+                
+                if (leads.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #999;">No hay leads disponibles</td></tr>';
+                    return;
+                }
+                
+                leads.forEach(lead => {
+                    const row = document.createElement('tr');
+                    
+                    let badgeClass = 'badge-pendiente';
+                    if (lead.estado === 'enviado') badgeClass = 'badge-enviado';
+                    if (lead.estado === 'interesado') badgeClass = 'badge-interesado';
+                    if (lead.estado === 'rechazado') badgeClass = 'badge-rechazado';
+                    
+                    row.innerHTML = `
+                        <td>${lead.id}</td>
+                        <td><strong>${lead.nombre_negocio}</strong></td>
+                        <td>${lead.categoria}</td>
+                        <td>${lead.ciudad}</td>
+                        <td>${lead.telefono}</td>
+                        <td><span class="badge ${badgeClass}">${lead.estado}</span></td>
+                        <td>${lead.fecha_contacto || '-'}</td>
+                        <td>${lead.plantilla_id || '-'}</td>
+                        <td title="${lead.mensaje || ''}">${lead.mensaje ? lead.mensaje.substring(0, 50) + '...' : '-'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+            } catch (error) {
+                console.error('Error cargando datos:', error);
+                document.getElementById('leads-table').innerHTML = 
+                    '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #e74c3c;">Error cargando datos. Verifica que leads.json existe.</td></tr>';
+            }
+        }
+        
+        // Cargar datos al inicio
+        loadData();
+        
+        // Auto-refresh cada 5 segundos
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>

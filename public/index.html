@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Outreach Bot - Gestor de Campañas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        .upload-zone {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 60px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-zone:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+        .upload-zone.dragover {
+            background: #e8ecff;
+            border-color: #667eea;
+        }
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        .upload-text {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .upload-hint {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .preview-table {
+            width: 100%;
+            margin-top: 30px;
+            border-collapse: collapse;
+        }
+        .preview-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .preview-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .preview-table tr:hover {
+            background: #f8f9ff;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .hidden {
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 WhatsApp Outreach Bot</h1>
+
+        <!-- Upload Card -->
+        <div class="card">
+            <h2 style="margin-bottom: 30px;">📤 Subir Leads de Google Maps</h2>
+            
+            <div id="alert-container"></div>
+
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Arrastra tu archivo (CSV, DOCX, TXT) aquí</div>
+                <div class="upload-hint">o haz click para seleccionar</div>
+                <input type="file" id="csv-input" accept=".csv,.docx,.txt">
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p style="margin-top: 20px;">Procesando archivo...</p>
+            </div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="card hidden" id="stats-card">
+            <h2 style="margin-bottom: 20px;">📊 Estadísticas</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-leads">0</div>
+                    <div class="stat-label">Total Leads</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pendientes">0</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="enviados">0</div>
+                    <div class="stat-label">Enviados</div>
+                </div>
+            </div>
+            
+            <button class="btn" id="trigger-btn">🚀 Iniciar Campaña</button>
+            <a href="dashboard.html" class="btn" style="text-decoration: none; margin-left: 10px;">📊 Ver Dashboard</a>
+        </div>
+
+        <!-- Preview Card -->
+        <div class="card hidden" id="preview-card">
+            <h2 style="margin-bottom: 20px;">👀 Preview de Leads (primeros 10)</h2>
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Negocio</th>
+                        <th>Teléfono</th>
+                        <th>Categoría</th>
+                        <th>Ciudad</th>
+                    </tr>
+                </thead>
+                <tbody id="preview-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const uploadZone = document.getElementById('upload-zone');
+        const csvInput = document.getElementById('csv-input');
+        const loading = document.getElementById('loading');
+        const alertContainer = document.getElementById('alert-container');
+        const statsCard = document.getElementById('stats-card');
+        const previewCard = document.getElementById('preview-card');
+        const triggerBtn = document.getElementById('trigger-btn');
+
+        // Click en zona de upload
+        uploadZone.addEventListener('click', () => csvInput.click());
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Selección de archivo
+        csvInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Procesar archivo
+        async function handleFile(file) {
+                const allowed = ['.csv', '.docx', '.txt'];
+                const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+                if (!allowed.includes(ext)) {
+                    showAlert('Formato no soportado. Usa CSV, DOCX o TXT', 'error');
+                    return;
+                }
+
+            loading.classList.remove('hidden');
+            uploadZone.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('csvFile', file);
+
+            try {
+                const response = await fetch('/upload-csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                    loading.classList.add('hidden');
+                    uploadZone.classList.remove('hidden');
+                    return;
+                }
+
+                // Mostrar mensaje y refrescar estado persistido
+                showAlert(`✅ ${data.parsed || data.count || 0} leads procesados. ${data.added ? data.added + ' nuevos' : ''}`, 'success');
+                await refreshLeads();
+
+            } catch (error) {
+                showAlert('Error procesando archivo: ' + error.message, 'error');
+                loading.classList.add('hidden');
+                uploadZone.classList.remove('hidden');
+            }
+        }
+
+            // Refrescar leads persistidos y actualizar UI
+            async function refreshLeads() {
+                try {
+                    const r = await fetch('/leads');
+                    const data = await r.json();
+                    const all = data.leads || [];
+
+                    document.getElementById('total-leads').textContent = all.length;
+                    document.getElementById('pendientes').textContent = all.filter(l=>!l.contactado).length;
+                    document.getElementById('enviados').textContent = all.filter(l=>l.contactado).length;
+
+                    const tbody = document.getElementById('preview-body');
+                    tbody.innerHTML = '';
+                    all.slice(0,10).forEach(lead => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${lead.id}</td>
+                            <td><strong>${lead.nombre_negocio}</strong></td>
+                            <td>${lead.telefono}</td>
+                            <td>${lead.categoria}</td>
+                            <td>${lead.ciudad}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    statsCard.classList.toggle('hidden', all.length === 0);
+                    previewCard.classList.toggle('hidden', all.length === 0);
+                    loading.classList.add('hidden');
+                    uploadZone.classList.remove('hidden');
+                } catch (err) {
+                    console.error('Error fetching leads:', err);
+                }
+            }
+
+            // Cargar leads al inicio
+            window.addEventListener('DOMContentLoaded', () => {
+                refreshLeads();
+            });
+
+        // Trigger workflow
+        triggerBtn.addEventListener('click', async () => {
+            if (!confirm('¿Iniciar campaña ahora? Se enviarán los mensajes según el workflow configurado.')) {
+                return;
+            }
+
+            triggerBtn.disabled = true;
+            triggerBtn.textContent = '⏳ Iniciando...';
+
+            try {
+                await fetch('/trigger-workflow', { method: 'POST' });
+                showAlert('✅ Campaña iniciada - verifica el dashboard', 'success');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2000);
+            } catch (error) {
+                showAlert('Error al iniciar campaña: ' + error.message, 'error');
+                triggerBtn.disabled = false;
+                triggerBtn.textContent = '🚀 Iniciar Campaña';
+            }
+        });
+
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+    </script>
+</body>
+</html>
