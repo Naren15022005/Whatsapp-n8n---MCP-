@@ -1,0 +1,64 @@
+{
+  "name": "Outreach - plantilla básica",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": [],
+        "options": {}
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{$env.GOOGLE_SHEETS_SHEET_ID}}",
+        "operation": "lookup",
+        "range": "Sheet1!A:I",
+        "options": {}
+      },
+      "name": "Google Sheets - Read Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/complete",
+        "method": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\"model\":\"claude\",\"prompt\":\"{{ $json.prompt }}\",\"max_tokens\":300}"
+      },
+      "name": "HTTP Request - Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/wa/sendMessage",
+        "method": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\"to\":\"{{$json.telefono}}\",\"message\":\"{{$json.message}}\"}"
+      },
+      "name": "HTTP Request - Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{$env.GOOGLE_SHEETS_SHEET_ID}}",
+        "operation": "update",
+        "range": "Sheet1!A:I",
+        "options": {}
+      },
+      "name": "Google Sheets - Update Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    }
+  ],
+  "connections": {}
+}

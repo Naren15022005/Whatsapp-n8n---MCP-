@@ -1,0 +1,226 @@
+{
+  "name": "Outreach - Recepción y Clasificación (Webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "evolution-webhook",
+        "httpMethod": "POST"
+      },
+      "name": "Webhook - Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const payload = items[0].json;\nitems[0].json.telefono = payload.from || (payload.message && payload.message.from) || payload.sender || payload.number || payload.phone;\nitems[0].json.respuesta = payload.text || (payload.message && payload.message.text) || (payload.body && payload.body.message) || payload.message || '';\nreturn items;"
+      },
+      "name": "Extract Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{$env.GOOGLE_SHEETS_SHEET_ID}}",
+        "operation": "getAll",
+        "range": "Sheet1!A2:I",
+        "options": {
+          "valueRenderOption": "FORMATTED_VALUE",
+          "returnAll": true
+        }
+      },
+      "name": "Google Sheets - Get All",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const phone = (items[0].json.telefono || '').toString().replace(/[^0-9+]/g,'');\nconst rows = items;\nlet found = null;\nfor (let i=0;i<rows.length;i++) {\n  const rPhone = (rows[i].json.telefono || '').toString().replace(/[^0-9+]/g,'');\n  if (rPhone === phone || rPhone.endsWith(phone)) { found = { index: i+2, json: rows[i].json }; break; }\n}\nif (found) { return [{ json: { rowIndex: found.index, ...found.json, telefono: phone, respuesta: items[0].json.respuesta } }]; }\nreturn [{ json: { rowIndex: null, telefono: phone, respuesta: items[0].json.respuesta } }];"
+      },
+      "name": "Find Lead Row",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "items[0].json.prompt = 'Analiza esta respuesta de WhatsApp de un negocio local al que le ofrecimos servicios de software.\\n\\nResponde SOLO con una de estas palabras, sin explicación:\\n\\n- INTERESADO → pregunta precios, pide más info, dice que sí, quiere reunión\\n- RECHAZO → dice que no, ya tienen alguien, no les interesa\\n- PREGUNTA → hace una pregunta pero no es claro si hay interés\\n- IGNORAR → spam, mensaje equivocado, no tiene relación\\n\\nRespuesta recibida: ' + items[0].json.respuesta;\nreturn items;"
+      },
+      "name": "Build Classify Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/complete",
+        "method": "POST",
+        "jsonParameters": true,
+        "headerParametersJson": "={\"x-api-key\":\"{{$env.ANTHROPIC_API_KEY}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\"model\":\"claude\",\"prompt\":\"{{$json.prompt}}\",\"max_tokens\":60}"
+      },
+      "name": "HTTP Request - Claude (classify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const res = items[0].json;\nlet text = '';\nif (res.completion) text = res.completion;\nelse if (res.output) text = res.output;\nelse if (res.message) text = res.message;\nelse if (res.choices && res.choices[0] && res.choices[0].text) text = res.choices[0].text;\nelse if (res.body && res.body.completion) text = res.body.completion;\nlet cls = (text||'').toString().split(/\\n/)[0].trim().toUpperCase();\nitems[0].json.classification = cls;\nreturn items;"
+      },
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.classification}}",
+              "operation": "equal",
+              "value2": "INTERESADO"
+            }
+          ]
+        }
+      },
+      "name": "IF - Interesado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/wa/sendMessage",
+        "method": "POST",
+        "jsonParameters": true,
+        "headerParametersJson": "={\"x-api-key\":\"{{$env.EVOLUTION_API_KEY}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\"to\":\"{{$env.MY_PERSONAL_PHONE}}\",\"message\":\"Nuevo lead INTERESADO: {{$json.nombre_negocio || ''}} - {{$json.telefono}}. Respuesta: {{$json.respuesta}}\"}"
+      },
+      "name": "Notify Personal - Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1850, 140]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{$env.GOOGLE_SHEETS_SHEET_ID}}",
+        "operation": "update",
+        "range": "Sheet1!A:I",
+        "options": {
+          "valueInputOption": "RAW"
+        }
+      },
+      "name": "Google Sheets - Update Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1850, 260]
+    }
+  ],
+  "connections": {
+    "Webhook - Evolution": {
+      "main": [
+        [
+          {
+            "node": "Extract Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Payload": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Get All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Get All": {
+      "main": [
+        [
+          {
+            "node": "Find Lead Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Build Classify Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Classify Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Claude (classify)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Claude (classify)": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "IF - Interesado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Interesado?": {
+      "main": [
+        [
+          {
+            "node": "Notify Personal - Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets - Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Personal - Evolution": {
+      "main": []
+    },
+    "Google Sheets - Update Status": {
+      "main": []
+    }
+  }
+}

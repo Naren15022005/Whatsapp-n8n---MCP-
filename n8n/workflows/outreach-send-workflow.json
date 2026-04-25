@@ -1,0 +1,239 @@
+{
+  "name": "Outreach - Envío (Schedule)",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": []
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{$env.GOOGLE_SHEETS_SHEET_ID}}",
+        "operation": "getAll",
+        "range": "Sheet1!A2:I",
+        "options": {
+          "valueRenderOption": "FORMATTED_VALUE",
+          "returnAll": true
+        }
+      },
+      "name": "Google Sheets - Get Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const rows = items;\nconst filtered = rows.filter(r => {\n  const c = r.json.contactado;\n  if (typeof c === 'string') return !(c.toLowerCase() === 'true');\n  return !(c === true);\n}).slice(0,30);\nreturn filtered.map(r => ({ json: r.json }));"
+      },
+      "name": "Filter Uncontacted",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "name": "SplitInBatches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "items[0].json.tiene_web = items[0].json.web && items[0].json.web.toString().trim() ? 'Sí' : 'No';\nitems[0].json.prompt = 'Eres un asistente de ventas para una agencia de desarrollo de software en Santa Marta, Colombia.\\n\\nGenera un mensaje de WhatsApp corto, amigable y personalizado para contactar a este negocio local.\\n\\nEl mensaje debe:\\n- Presentarte brevemente como desarrollador de software\\n- Mencionar el nombre del negocio\\n- Hacer una pregunta abierta sobre su presencia digital\\n- Máximo 3 líneas. Sin emojis exagerados.\\n\\nDatos del negocio:\\n- Nombre: ' + items[0].json.nombre_negocio + '\\n- Categoría: ' + items[0].json.categoria + '\\n- Ciudad: ' + items[0].json.ciudad + '\\n- Tiene web: ' + items[0].json.tiene_web;\nreturn items;"
+      },
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/complete",
+        "method": "POST",
+        "jsonParameters": true,
+        "headerParametersJson": "={\"x-api-key\":\"{{$env.ANTHROPIC_API_KEY}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\"model\":\"claude\",\"prompt\":\"{{$json.prompt}}\",\"max_tokens\":300}"
+      },
+      "name": "HTTP Request - Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const res = items[0].json;\nlet text = '';\nif (res.completion) text = res.completion;\nelse if (res.output) text = res.output;\nelse if (res.message) text = res.message;\nelse if (res.choices && res.choices[0] && res.choices[0].text) text = res.choices[0].text;\nelse if (res.body && res.body.completion) text = res.body.completion;\nitems[0].json.message = (text||'').toString().replace(/^\"|\"$/g,'').trim();\nreturn items;"
+      },
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "items[0].json.waitSeconds = Math.floor(Math.random() * (90 - 30 + 1)) + 30;\nreturn items;"
+      },
+      "name": "Calc Delay",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "time": "={{$json.waitSeconds}}",
+        "unit": "seconds"
+      },
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/wa/sendMessage",
+        "method": "POST",
+        "jsonParameters": true,
+        "headerParametersJson": "={\"x-api-key\":\"{{$env.EVOLUTION_API_KEY}}\",\"Content-Type\":\"application/json\"}",
+        "bodyParametersJson": "={\"to\":\"{{$json.telefono}}\",\"message\":\"{{$json.message}}\"}"
+      },
+      "name": "HTTP Request - Evolution Send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{$env.GOOGLE_SHEETS_SHEET_ID}}",
+        "operation": "update",
+        "range": "Sheet1!A:I",
+        "options": {
+          "valueInputOption": "RAW"
+        }
+      },
+      "name": "Google Sheets - Update Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [2250, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Get Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Get Leads": {
+      "main": [
+        [
+          {
+            "node": "Filter Uncontacted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Uncontacted": {
+      "main": [
+        [
+          {
+            "node": "SplitInBatches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SplitInBatches": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Calc Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc Delay": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Evolution Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Evolution Send": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Update Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Update Lead": {
+      "main": []
+    }
+  }
+}

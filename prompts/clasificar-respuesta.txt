@@ -1,0 +1,10 @@
+Analiza esta respuesta de WhatsApp de un negocio local al que le ofrecimos servicios de software.
+
+Responde SOLO con una de estas palabras, sin explicación:
+
+- INTERESADO → pregunta precios, pide más info, dice que sí, quiere reunión
+- RECHAZO → dice que no, ya tienen alguien, no les interesa
+- PREGUNTA → hace una pregunta pero no es claro si hay interés
+- IGNORAR → spam, mensaje equivocado, no tiene relación
+
+Respuesta recibida: {{respuesta_negocio}}

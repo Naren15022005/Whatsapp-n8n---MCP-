@@ -1,0 +1,8 @@
+.env
+n8n/data/
+evolution/instances/
+credentials/
+*.log
+.vscode/
+.DS_Store
+node_modules/
